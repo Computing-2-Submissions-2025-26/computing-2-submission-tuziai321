@@ -6,9 +6,7 @@ Realmline is an original two-player, turn-based territory game. Red and Blue beg
 
 The board starts open, so early moves feel quite free. As the walls go up, the game becomes tighter and more tactical. The aim is not just to move into space, but to shape the board so that your pieces end up inside territories your opponent cannot share. A territory only scores when it contains pieces from one player; mixed territories are still contested and score for nobody.
 
-I wanted the game to feel easy to begin but interesting to finish. A good turn can claim space for yourself, block a larger plan from the other player, or keep a territory open until the timing is better.If you want to play well in its game. You need to become very logic and know what you should do for the next step and predict your opponents action.It takes sometime to  understand the game rules and it is better to play one games to make your understand quicker.
-
-And if you have any sugestion of the game rules or you find any bugs during the game, you can tell me and I will take consider on to it.
+I wanted the game to feel easy to begin but interesting to finish. A good turn can claim space for yourself, block a larger plan from the other player, or keep a territory open until the timing is better. Strong play depends on planning the next wall while anticipating the opponent's response.
 
 ## How to Play
 
@@ -44,6 +42,9 @@ Then open:
 http://127.0.0.1:5500/index.html
 ```
 
+In VS Code on Windows, the `Open Realmline in Browser` launch configuration
+starts the same server and opens the game in Microsoft Edge.
+
 Using a local web server is recommended because the browser loads the JavaScript files as ES modules. Some browsers may block module imports when `index.html` is opened directly as a local file.
 
 ## Run Checks
@@ -68,7 +69,7 @@ npm run docs
 
 Current verification:
 
-- The module test suite contains 22 behaviour-focused tests.
+- The module test suite contains 26 behaviour-focused tests.
 - The tests cover setup, placement order, movement, wall placement, territory scoring, draw handling, and game-over conditions.
 - `web-app/main.js` passes a JavaScript syntax check with Node.
 
@@ -101,6 +102,17 @@ The game rules live in `Module.js`, where they can be tested without the browser
 
 - The tests describe the expected behaviour of the original two-player rules.
 - They focus on placement order, legal movement, wall placement, territory scoring, draw handling, and game-ending conditions.
+
+| Behaviour | Input or state | Expected result |
+| --- | --- | --- |
+| Initial setup | A newly created game | A 7 by 7 placement board with Red to act |
+| Placement order | Four legal empty cells | Pieces are placed Red, Blue, Blue, Red |
+| Legal movement | A current-player piece | Only zero, one, or two orthogonal steps are returned |
+| Blocked movement | A wall or piece lies on the path | Destinations beyond the blocker are excluded |
+| Wall placement | A piece has just moved | A wall may be built only beside that piece |
+| Territory scoring | A region contains one player's pieces | Every cell in that region scores for that player |
+| Tie-break | Total scores are equal | The largest single territory decides the winner |
+| Game over | Players are separated or a lead is uncatchable | The game reports the correct winner or draw |
 
 ### Unit Tests - Implementation
 

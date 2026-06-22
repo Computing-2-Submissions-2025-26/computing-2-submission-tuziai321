@@ -150,7 +150,9 @@ function createCell(row, col) {
   if (state.phase === "placement" && !piece) cell.classList.add("placement-target");
   if (piece?.id === selectedPieceId) cell.classList.add("selected");
   if (isWallSource(row, col)) cell.classList.add("wall-source");
-  if (moveTargets.some((target) => target.row === row && target.col === col)) cell.classList.add("move-target");
+  if (moveTargets.some((target) => target.row === row && target.col === col)) {
+    cell.classList.add("move-target");
+  }
   if (piece) cell.append(createPieceMarker(piece));
   cell.setAttribute("aria-label", getCellLabel(row, col, piece));
 
@@ -207,7 +209,8 @@ function createWallButton(row, col, side) {
 
 function renderStatus() {
   const summary = getGameSummary(state);
-  const scoreChanged = summary.score.Red !== previousScore.Red || summary.score.Blue !== previousScore.Blue;
+  const scoreChanged =
+    summary.score.Red !== previousScore.Red || summary.score.Blue !== previousScore.Blue;
 
   renderTurn(summary);
   phaseLabel.textContent = getPhaseLabel(summary);
@@ -273,7 +276,11 @@ function renderFeedback(summary, scoreChanged) {
   if (leader === "Blue") feedbackPanel.classList.add("blue-leading");
   if (scoreChanged) {
     feedbackPanel.classList.add("score-changed");
-    feedbackPanel.addEventListener("animationend", () => feedbackPanel.classList.remove("score-changed"), { once: true });
+    feedbackPanel.addEventListener(
+      "animationend",
+      () => feedbackPanel.classList.remove("score-changed"),
+      { once: true }
+    );
   }
 
   if (!leader) {
@@ -282,8 +289,11 @@ function renderFeedback(summary, scoreChanged) {
     return;
   }
 
-  feedbackLead.textContent = `${leader} leads by ${gap} territory ${gap === 1 ? "point" : "points"}.`;
-  feedbackHint.textContent = `${leader === "Red" ? "Blue" : "Red"} can chase by cutting off a single-colour region.`;
+  feedbackLead.textContent =
+    `${leader} leads by ${gap} territory ` + `${gap === 1 ? "point" : "points"}.`;
+  feedbackHint.textContent =
+    `${leader === "Red" ? "Blue" : "Red"} can chase by cutting off ` +
+    "a single-colour region.";
 }
 
 function renderLiveScore(summary, scoreChanged) {
@@ -296,9 +306,11 @@ function renderLiveScore(summary, scoreChanged) {
   if (leader === "Blue") liveScorePanel.classList.add("blue-leading");
   if (scoreChanged) {
     liveScorePanel.classList.add("score-changed");
-    liveScorePanel.addEventListener("animationend", () => liveScorePanel.classList.remove("score-changed"), {
-      once: true
-    });
+    liveScorePanel.addEventListener(
+      "animationend",
+      () => liveScorePanel.classList.remove("score-changed"),
+      { once: true }
+    );
   }
   setScoreBars(summary.score, liveRedBar, liveBlueBar);
 }
@@ -330,7 +342,12 @@ function renderResult(summary) {
 }
 
 function renderGuide() {
-  const activeStep = state.phase === "placement" ? "placement" : state.phase === "wall" ? "wall" : state.phase;
+  const activeStep =
+    state.phase === "placement"
+      ? "placement"
+      : state.phase === "wall"
+        ? "wall"
+        : state.phase;
   guidePanel.querySelectorAll("li").forEach((item) => {
     const isActive = item.dataset.step === activeStep;
     const isDone = isGuideStepDone(item.dataset.step);
@@ -368,7 +385,10 @@ function handleCellClick(row, col) {
   }
 
   if (selectedPieceId) {
-    setMessage("Choose a highlighted square, including the selected piece's current square to stay still.");
+    setMessage(
+      "Choose a highlighted square, including the selected piece's " +
+        "current square to stay still."
+    );
   }
 }
 
@@ -440,7 +460,9 @@ function renderWallControls() {
     button.className = "wall-control";
     button.textContent = getDirectionLabel(direction.name);
     button.disabled = !canPlaceWall(state, movedPiece, direction.name);
-    button.addEventListener("click", () => handleWallClick(movedPiece.row, movedPiece.col, direction.name));
+    button.addEventListener("click", () =>
+      handleWallClick(movedPiece.row, movedPiece.col, direction.name)
+    );
     wallControlsEl.append(button);
   });
 }
@@ -454,13 +476,20 @@ function getFinishedMessage() {
   if (summary.winner === "Draw") {
     return `Game over: draw. Red ${summary.score.Red}, Blue ${summary.score.Blue}.${largestText}`;
   }
-  return `Game over: ${summary.winner} wins. Red ${summary.score.Red}, Blue ${summary.score.Blue}.${largestText}`;
+  return (
+    `Game over: ${summary.winner} wins. Red ${summary.score.Red}, ` +
+    `Blue ${summary.score.Blue}.${largestText}`
+  );
 }
 
 function getResultDetail(summary) {
   const margin = Math.abs(summary.score.Red - summary.score.Blue);
   if (margin > summary.unclaimedTerritory) {
-    return `${summary.winner} leads by ${margin}, with only ${summary.unclaimedTerritory} unclaimed territory left. The lead cannot be caught.`;
+    return (
+      `${summary.winner} leads by ${margin}, with only ` +
+      `${summary.unclaimedTerritory} unclaimed territory left. ` +
+      "The lead cannot be caught."
+    );
   }
   return `${summary.winner} controlled more separated territory.`;
 }

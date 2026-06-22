@@ -352,10 +352,15 @@ export function getRegions(state) {
  * @returns {{Red: number, Blue: number}} Territory score for each player.
  */
 export function getScore(state) {
-  return getRegions(state).reduce(
+  return scoreRegions(getRegions(state));
+}
+
+function scoreRegions(regions) {
+  return regions.reduce(
     (score, region) => {
       if (region.owners.length !== 1) return score;
-      return { ...score, [region.owners[0]]: score[region.owners[0]] + region.cells.length };
+      const owner = region.owners[0];
+      return { ...score, [owner]: score[owner] + region.cells.length };
     },
     { Red: 0, Blue: 0 }
   );
@@ -369,7 +374,7 @@ export function getScore(state) {
  */
 export function getUnclaimedTerritory(state) {
   const score = getScore(state);
-  return state.size * state.size - score.Red - score.Blue;
+  return countUnclaimedTerritory(state, score);
 }
 
 /**
@@ -383,10 +388,7 @@ export function getUnclaimedTerritory(state) {
  * @returns {boolean} Whether the game has ended.
  */
 export function isGameOver(state) {
-  return (
-    state.phase !== "placement" &amp;&amp;
-    (arePlayersSeparated(state) || isLeadUncatchable(state) || currentPlayerCannotMove(state))
-  );
+  return evaluateGameState(state).gameOver;
 }
 
 /**
@@ -396,17 +398,7 @@ export function isGameOver(state) {
  * @returns {Player | "Draw" | undefined} Winner, draw, or undefined while the game continues.
  */
 export function getWinner(state) {
-  if (!isGameOver(state)) return undefined;
-
-  const score = getScore(state);
-  if (score.Red > score.Blue) return "Red";
-  if (score.Blue > score.Red) return "Blue";
-
-  const redLargest = getLargestTerritory(state, "Red");
-  const blueLargest = getLargestTerritory(state, "Blue");
-  if (redLargest > blueLargest) return "Red";
-  if (blueLargest > redLargest) return "Blue";
-  return "Draw";
+  return evaluateGameState(state).winner;
 }
 
 /**
@@ -417,7 +409,11 @@ export function getWinner(state) {
  * @returns {number} Size of that player's largest territory.
  */
 export function getLargestTerritory(state, player) {
-  return getRegions(state)
+  return getLargestTerritoryFromRegions(getRegions(state), player);
+}
+
+function getLargestTerritoryFromRegions(regions, player) {
+  return regions
     .filter((region) => region.owners.length === 1 &amp;&amp; region.owners[0] === player)
     .reduce((largest, region) => Math.max(largest, region.cells.length), 0);
 }
@@ -429,16 +425,50 @@ export function getLargestTerritory(state, player) {
  * @returns {GameSummary} Current public game information.
  */
 export function getGameSummary(state) {
+  const evaluation = evaluateGameState(state);
   return {
     turn: state.currentPlayer,
     phase: state.phase,
     pendingPlacement: getPendingPlacement(state),
-    score: getScore(state),
-    unclaimedTerritory: getUnclaimedTerritory(state),
-    winner: getWinner(state)
+    score: evaluation.score,
+    unclaimedTerritory: evaluation.unclaimedTerritory,
+    winner: evaluation.winner
   };
 }
 
+function evaluateGameState(state) {
+  const regions = getRegions(state);
+  const score = scoreRegions(regions);
+  const unclaimedTerritory = countUnclaimedTerritory(state, score);
+  const gameOver =
+    state.phase !== "placement" &amp;&amp;
+    (arePlayersSeparated(regions) ||
+      isLeadUncatchable(score, unclaimedTerritory) ||
+      currentPlayerCannotMove(state));
+
+  return {
+    score,
+    unclaimedTerritory,
+    gameOver,
+    winner: determineWinner(gameOver, score, regions)
+  };
+}
+
+function determineWinner(gameOver, score, regions) {
+  if (!gameOver) return undefined;
+  if (score.Red > score.Blue) return "Red";
+  if (score.Blue > score.Red) return "Blue";
+
+  const redLargest = getLargestTerritoryFromRegions(regions, "Red");
+  const blueLargest = getLargestTerritoryFromRegions(regions, "Blue");
+  if (redLargest > blueLargest) return "Red";
+  if (blueLargest > redLargest) return "Blue";
+  return "Draw";
+}
+
+function countUnclaimedTerritory(state, score) {
+  return state.size * state.size - score.Red - score.Blue;
+}
 function createEmptyWalls(size) {
   return Array.from({ length: size }, () =>
     Array.from({ length: size }, () => ({ top: false, right: false, bottom: false, left: false }))
@@ -466,13 +496,12 @@ function hasBuildableWallAt(state, position) {
   });
 }
 
-function arePlayersSeparated(state) {
-  return getRegions(state).every((region) => region.owners.length &lt;= 1);
+function arePlayersSeparated(regions) {
+  return regions.every((region) => region.owners.length &lt;= 1);
 }
 
-function isLeadUncatchable(state) {
-  const score = getScore(state);
-  return Math.abs(score.Red - score.Blue) > getUnclaimedTerritory(state);
+function isLeadUncatchable(score, unclaimedTerritory) {
+  return Math.abs(score.Red - score.Blue) > unclaimedTerritory;
 }
 
 function currentPlayerCannotMove(state) {
@@ -511,13 +540,16 @@ function exploreRegion(state, start, visited) {
 }
 
 function isInside(state, position) {
-  return position.row >= 0 &amp;&amp; position.row &lt; state.size &amp;&amp; position.col >= 0 &amp;&amp; position.col &lt; state.size;
+  return (
+    position.row >= 0 &amp;&amp;
+    position.row &lt; state.size &amp;&amp;
+    position.col >= 0 &amp;&amp;
+    position.col &lt; state.size
+  );
 }
-
 function getDirection(side) {
   return DIRECTIONS.find((direction) => direction.name === side);
 }
-
 function nextPlayer(player) {
   return player === "Red" ? "Blue" : "Red";
 }
@@ -543,7 +575,7 @@ function positionKey(position) {
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Sun Jun 21 2026 20:40:33 GMT+0100 (英国夏令时间) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Mon Jun 22 2026 17:40:00 GMT+0100 (英国夏令时间) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>

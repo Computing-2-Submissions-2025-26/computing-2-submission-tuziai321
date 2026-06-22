@@ -7,7 +7,9 @@ import {
   getLegalMoves,
   getPendingPlacement,
   getPieceAt,
+  getRegions,
   getScore,
+  getUnclaimedTerritory,
   getWinner,
   isGameOver,
   movePiece,
@@ -83,6 +85,39 @@ function createDrawState() {
   };
 }
 
+function createLargestTerritoryTieBreakState() {
+  const size = 4;
+  const walls = createEmptyWalls(size);
+
+  for (let row = 0; row < size; row += 1) {
+    walls[row][2].right = true;
+    walls[row][3].left = true;
+  }
+  for (let col = 0; col < 3; col += 1) {
+    walls[1][col].bottom = true;
+    walls[2][col].top = true;
+  }
+  for (let row = 2; row < size; row += 1) {
+    walls[row][0].right = true;
+    walls[row][1].left = true;
+  }
+
+  return {
+    size,
+    currentPlayer: "Red",
+    phase: "move",
+    pieces: [
+      { id: "R1", player: "Red", row: 0, col: 0 },
+      { id: "R2", player: "Red", row: 2, col: 0 },
+      { id: "B1", player: "Blue", row: 2, col: 1 },
+      { id: "B2", player: "Blue", row: 0, col: 3 }
+    ],
+    placementQueue: [],
+    lastMovedPieceId: undefined,
+    walls
+  };
+}
+
 function createUncatchableLeadState() {
   const size = 4;
   const walls = createEmptyWalls(size);
@@ -145,12 +180,17 @@ function createTrappedCurrentPlayerState() {
 }
 
 describe("Realmline original two-player rules", () => {
-  it("starts on a 7 by 7 board with two fixed pieces for each player", () => {
+  it("starts in placement on a 7 by 7 board with Red to act", () => {
     const state = createInitialState();
 
     assert.equal(state.size, 7);
     assert.equal(state.phase, "placement");
     assert.equal(state.currentPlayer, "Red");
+  });
+
+  it("starts with two fixed pieces for each player", () => {
+    const state = createInitialState();
+
     assert.deepEqual(getPieceAt(state, { row: 1, col: 1 }), {
       id: "R1",
       player: "Red",
@@ -299,12 +339,18 @@ describe("Realmline original two-player rules", () => {
   });
 
   it("does not list destinations beyond a wall", () => {
-    const moved = movePiece(completePlacement(createInitialState()), "R1", { row: 0, col: 1 });
+    const moved = movePiece(completePlacement(createInitialState()), "R1", {
+      row: 0,
+      col: 1
+    });
     const afterWall = placeWall(moved, { row: 0, col: 1 }, "right");
     const redTurn = { ...afterWall, currentPlayer: "Red" };
     const moves = getLegalMoves(redTurn, "R1");
 
-    assert(!moves.some((move) => move.row === 0 && move.col === 2), "R1 cannot cross the wall to its right");
+    assert(
+      !moves.some((move) => move.row === 0 && move.col === 2),
+      "R1 cannot cross the wall to its right"
+    );
   });
 
   it("does not allow moving to a square with no wall edge left to build", () => {
@@ -319,7 +365,10 @@ describe("Realmline original two-player rules", () => {
     blocked.walls[0][1].left = true;
     const moves = getLegalMoves(blocked, "R1");
 
-    assert(!moves.some((move) => move.row === 0 && move.col === 1), "R1 cannot move where no wall can be built");
+    assert(
+      !moves.some((move) => move.row === 0 && move.col === 1),
+      "R1 cannot move where no wall can be built"
+    );
   });
 
   it("scores separated territories and chooses the player with more territory", () => {
@@ -332,6 +381,18 @@ describe("Realmline original two-player rules", () => {
     assert.equal(getWinner(state), "Blue");
   });
 
+  it("finds the connected regions created by a complete split", () => {
+    const regions = getRegions(createSplitState());
+    const regionSizes = regions.map((region) => region.cells.length).sort((a, b) => a - b);
+
+    assert.equal(regions.length, 2);
+    assert.deepEqual(regionSizes, [21, 28]);
+  });
+
+  it("reports no unclaimed territory after every region has an owner", () => {
+    assert.equal(getUnclaimedTerritory(createSplitState()), 0);
+  });
+
   it("declares a draw when both players have equal total and largest territory", () => {
     const state = createDrawState();
 
@@ -340,6 +401,15 @@ describe("Realmline original two-player rules", () => {
     assert.equal(getLargestTerritory(state, "Red"), 2);
     assert.equal(getLargestTerritory(state, "Blue"), 2);
     assert.equal(getWinner(state), "Draw");
+  });
+
+  it("uses the largest single territory when total scores are equal", () => {
+    const state = createLargestTerritoryTieBreakState();
+
+    assert.deepEqual(getScore(state), { Red: 8, Blue: 8 });
+    assert.equal(getLargestTerritory(state, "Red"), 6);
+    assert.equal(getLargestTerritory(state, "Blue"), 4);
+    assert.equal(getWinner(state), "Red");
   });
 
   it("returns no winner while both players still share one region", () => {

@@ -1,23 +1,11 @@
-
-
-
-
-
-
-
-
-
-
-
-
 /**
- * Its a game for two players, and it really needs some logic and brainstorming to play it. 
- * So it takes sometime to understand whats going on , and its better to try this game first and can make you quicker to understand.
+ * Original two-player Realmline game logic.
+ *
  * The game uses a 7 by 7 board. Red and Blue each control four pieces. Two
  * pieces per player begin in fixed starting positions, then the remaining
  * pieces are placed in the order Red, Blue, Blue, Red. During normal play a
  * player moves one piece up to two orthogonal steps, including zero steps,
- * then builds one permanent wall beside that moved piece.And each player switch each turns during the game.
+ * then builds one permanent wall beside that moved piece.
  *
  * @module Realmline
  */
@@ -63,7 +51,7 @@
  * @property {PendingPiece[]} placementQueue Pieces still waiting to be placed.
  * @property {string | undefined} lastMovedPieceId Piece that must build a wall.
  * @property {WallSet[][]} walls Wall data for every cell.
- * @property {object[][]} wallOwners Player who built each wall for the each edge.
+ * @property {object[][]} wallOwners Player who built each wall edge.
  */
 
 /**
@@ -91,7 +79,7 @@
  */
 
 /**
- * Board directions used for movement and wall edges.For each direction, the row and column offsets indicate how to move from a cell to its neighbour in that direction.
+ * Board directions used for movement and wall edges.
  *
  * @type {Direction[]}
  */
@@ -119,8 +107,8 @@ export const PLAYERS = ["Red", "Blue"];
 /**
  * Create the original two-player Realmline starting state.
  *
- * @returns {GameState} A fresh game with fixed pieces placed and placement phase active.And each pieces has already put into its oringinal position.
- */ 
+ * @returns {GameState} A fresh game with fixed pieces placed and placement phase active.
+ */
 export function createInitialState() {
   return {
     size: DEFAULT_BOARD_SIZE,
@@ -166,7 +154,7 @@ export function getPendingPlacement(state) {
 }
 
 /**
- * Place the next pending piece on an empty board cell.which ever the current player is, and advance the game state to the next placement or move phase.
+ * Place the next pending piece on an empty board cell.
  *
  * @param {GameState} state Current game state.
  * @param {Position} position Empty position for the next piece.
@@ -198,7 +186,7 @@ export function placePiece(state, position) {
  * Legal destinations include the piece's current square, representing a
  * zero-step move. Other destinations must be one or two squares in a single
  * orthogonal direction without crossing walls, pieces, or board edges.
- *so in this case  . You can move which ever way you want
+ *
  * @param {GameState} state Game state to inspect.
  * @param {string} pieceId Piece to move.
  * @returns {Position[]} Reachable destinations.
@@ -237,7 +225,7 @@ export function movePiece(state, pieceId, destination) {
 }
 
 /**
- * Return true when the current player may build a wall on the selected edge.And this step must be legal.
+ * Return true when the current player may build a wall on the selected edge.
  *
  * In the original two-player rules, the wall must be beside the piece just
  * moved this turn. Walls are permanent and may only be placed on open edges
@@ -317,10 +305,15 @@ export function getRegions(state) {
  * @returns {{Red: number, Blue: number}} Territory score for each player.
  */
 export function getScore(state) {
-  return getRegions(state).reduce(
+  return scoreRegions(getRegions(state));
+}
+
+function scoreRegions(regions) {
+  return regions.reduce(
     (score, region) => {
       if (region.owners.length !== 1) return score;
-      return { ...score, [region.owners[0]]: score[region.owners[0]] + region.cells.length };
+      const owner = region.owners[0];
+      return { ...score, [owner]: score[owner] + region.cells.length };
     },
     { Red: 0, Blue: 0 }
   );
@@ -334,7 +327,7 @@ export function getScore(state) {
  */
 export function getUnclaimedTerritory(state) {
   const score = getScore(state);
-  return state.size * state.size - score.Red - score.Blue;
+  return countUnclaimedTerritory(state, score);
 }
 
 /**
@@ -342,16 +335,13 @@ export function getUnclaimedTerritory(state) {
  *
  * The game ends when either all occupied regions are separated by player, or
  * one player leads by more points than all remaining unclaimed territory, or
- * the current player has no legal move that can be followed by a wall.The game will finish immediately.
+ * the current player has no legal move that can be followed by a wall.
  *
  * @param {GameState} state Game state to inspect.
  * @returns {boolean} Whether the game has ended.
  */
 export function isGameOver(state) {
-  return (
-    state.phase !== "placement" &&
-    (arePlayersSeparated(state) || isLeadUncatchable(state) || currentPlayerCannotMove(state))
-  );
+  return evaluateGameState(state).gameOver;
 }
 
 /**
@@ -361,17 +351,7 @@ export function isGameOver(state) {
  * @returns {Player | "Draw" | undefined} Winner, draw, or undefined while the game continues.
  */
 export function getWinner(state) {
-  if (!isGameOver(state)) return undefined;
-
-  const score = getScore(state);
-  if (score.Red > score.Blue) return "Red";
-  if (score.Blue > score.Red) return "Blue";
-
-  const redLargest = getLargestTerritory(state, "Red");
-  const blueLargest = getLargestTerritory(state, "Blue");
-  if (redLargest > blueLargest) return "Red";
-  if (blueLargest > redLargest) return "Blue";
-  return "Draw";
+  return evaluateGameState(state).winner;
 }
 
 /**
@@ -382,7 +362,11 @@ export function getWinner(state) {
  * @returns {number} Size of that player's largest territory.
  */
 export function getLargestTerritory(state, player) {
-  return getRegions(state)
+  return getLargestTerritoryFromRegions(getRegions(state), player);
+}
+
+function getLargestTerritoryFromRegions(regions, player) {
+  return regions
     .filter((region) => region.owners.length === 1 && region.owners[0] === player)
     .reduce((largest, region) => Math.max(largest, region.cells.length), 0);
 }
@@ -394,16 +378,50 @@ export function getLargestTerritory(state, player) {
  * @returns {GameSummary} Current public game information.
  */
 export function getGameSummary(state) {
+  const evaluation = evaluateGameState(state);
   return {
     turn: state.currentPlayer,
     phase: state.phase,
     pendingPlacement: getPendingPlacement(state),
-    score: getScore(state),
-    unclaimedTerritory: getUnclaimedTerritory(state),
-    winner: getWinner(state)
+    score: evaluation.score,
+    unclaimedTerritory: evaluation.unclaimedTerritory,
+    winner: evaluation.winner
   };
 }
-// to decide where the walls can put on and where can not.
+
+function evaluateGameState(state) {
+  const regions = getRegions(state);
+  const score = scoreRegions(regions);
+  const unclaimedTerritory = countUnclaimedTerritory(state, score);
+  const gameOver =
+    state.phase !== "placement" &&
+    (arePlayersSeparated(regions) ||
+      isLeadUncatchable(score, unclaimedTerritory) ||
+      currentPlayerCannotMove(state));
+
+  return {
+    score,
+    unclaimedTerritory,
+    gameOver,
+    winner: determineWinner(gameOver, score, regions)
+  };
+}
+
+function determineWinner(gameOver, score, regions) {
+  if (!gameOver) return undefined;
+  if (score.Red > score.Blue) return "Red";
+  if (score.Blue > score.Red) return "Blue";
+
+  const redLargest = getLargestTerritoryFromRegions(regions, "Red");
+  const blueLargest = getLargestTerritoryFromRegions(regions, "Blue");
+  if (redLargest > blueLargest) return "Red";
+  if (blueLargest > redLargest) return "Blue";
+  return "Draw";
+}
+
+function countUnclaimedTerritory(state, score) {
+  return state.size * state.size - score.Red - score.Blue;
+}
 function createEmptyWalls(size) {
   return Array.from({ length: size }, () =>
     Array.from({ length: size }, () => ({ top: false, right: false, bottom: false, left: false }))
@@ -415,7 +433,7 @@ function createEmptyWallOwners(size) {
 }
 
 function getMovesInDirection(state, start, direction, remainingSteps) {
-  // Walk one square at a time so a two-step move cannot jump through walls or pieces. Make each step become the legal step and which fully meets the requirements of the game. The remainingSteps is used to limit the number of steps in a single direction.
+  // Walk one square at a time so a two-step move cannot jump through walls or pieces.
   if (remainingSteps === 0 || state.walls[start.row][start.col][direction.name]) return [];
 
   const next = { row: start.row + direction.dr, col: start.col + direction.dc };
@@ -431,13 +449,12 @@ function hasBuildableWallAt(state, position) {
   });
 }
 
-function arePlayersSeparated(state) {
-  return getRegions(state).every((region) => region.owners.length <= 1);
+function arePlayersSeparated(regions) {
+  return regions.every((region) => region.owners.length <= 1);
 }
 
-function isLeadUncatchable(state) {
-  const score = getScore(state);
-  return Math.abs(score.Red - score.Blue) > getUnclaimedTerritory(state);
+function isLeadUncatchable(score, unclaimedTerritory) {
+  return Math.abs(score.Red - score.Blue) > unclaimedTerritory;
 }
 
 function currentPlayerCannotMove(state) {
@@ -476,13 +493,16 @@ function exploreRegion(state, start, visited) {
 }
 
 function isInside(state, position) {
-  return position.row >= 0 && position.row < state.size && position.col >= 0 && position.col < state.size;
+  return (
+    position.row >= 0 &&
+    position.row < state.size &&
+    position.col >= 0 &&
+    position.col < state.size
+  );
 }
-// to get the direction of the wall
 function getDirection(side) {
   return DIRECTIONS.find((direction) => direction.name === side);
 }
-//each player will switch turns during the game.
 function nextPlayer(player) {
   return player === "Red" ? "Blue" : "Red";
 }

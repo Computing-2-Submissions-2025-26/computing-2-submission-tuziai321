@@ -48,10 +48,12 @@ const server = createServer(async (request, response) => {
   try {
     const fileInfo = await stat(filePath);
     if (!fileInfo.isFile()) throw new Error("Not a file");
+    const contentType =
+      CONTENT_TYPES.get(extname(filePath).toLowerCase()) ?? "application/octet-stream";
 
     response.writeHead(200, {
       "Cache-Control": "no-store",
-      "Content-Type": CONTENT_TYPES.get(extname(filePath).toLowerCase()) ?? "application/octet-stream"
+      "Content-Type": contentType
     });
     if (request.method === "HEAD") {
       response.end();
