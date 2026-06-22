@@ -6,7 +6,9 @@ Realmline is an original two-player, turn-based territory game. Red and Blue beg
 
 The board starts open, so early moves feel quite free. As the walls go up, the game becomes tighter and more tactical. The aim is not just to move into space, but to shape the board so that your pieces end up inside territories your opponent cannot share. A territory only scores when it contains pieces from one player; mixed territories are still contested and score for nobody.
 
-I wanted the game to feel easy to begin but interesting to finish. A good turn can claim space for yourself, block a larger plan from the other player, or keep a territory open until the timing is better.
+I wanted the game to feel easy to begin but interesting to finish. A good turn can claim space for yourself, block a larger plan from the other player, or keep a territory open until the timing is better.If you want to play well in its game. You need to become very logic and know what you should do for the next step and predict your opponents action.It takes sometime to  understand the game rules and it is better to play one games to make your understand quicker.
+
+And if you have any sugestion of the game rules or you find any bugs during the game, you can tell me and I will take consider on to it.
 
 ## How to Play
 

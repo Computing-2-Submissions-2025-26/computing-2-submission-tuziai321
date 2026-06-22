@@ -1,11 +1,23 @@
+
+
+
+
+
+
+
+
+
+
+
+
 /**
- * Original two-player Realmline game logic.
- *
+ * Its a game for two players, and it really needs some logic and brainstorming to play it. 
+ * So it takes sometime to understand whats going on , and its better to try this game first and can make you quicker to understand.
  * The game uses a 7 by 7 board. Red and Blue each control four pieces. Two
  * pieces per player begin in fixed starting positions, then the remaining
  * pieces are placed in the order Red, Blue, Blue, Red. During normal play a
  * player moves one piece up to two orthogonal steps, including zero steps,
- * then builds one permanent wall beside that moved piece.
+ * then builds one permanent wall beside that moved piece.And each player switch each turns during the game.
  *
  * @module Realmline
  */
@@ -51,7 +63,7 @@
  * @property {PendingPiece[]} placementQueue Pieces still waiting to be placed.
  * @property {string | undefined} lastMovedPieceId Piece that must build a wall.
  * @property {WallSet[][]} walls Wall data for every cell.
- * @property {object[][]} wallOwners Player who built each wall edge.
+ * @property {object[][]} wallOwners Player who built each wall for the each edge.
  */
 
 /**
@@ -79,7 +91,7 @@
  */
 
 /**
- * Board directions used for movement and wall edges.
+ * Board directions used for movement and wall edges.For each direction, the row and column offsets indicate how to move from a cell to its neighbour in that direction.
  *
  * @type {Direction[]}
  */
@@ -107,8 +119,8 @@ export const PLAYERS = ["Red", "Blue"];
 /**
  * Create the original two-player Realmline starting state.
  *
- * @returns {GameState} A fresh game with fixed pieces placed and placement phase active.
- */
+ * @returns {GameState} A fresh game with fixed pieces placed and placement phase active.And each pieces has already put into its oringinal position.
+ */ 
 export function createInitialState() {
   return {
     size: DEFAULT_BOARD_SIZE,
@@ -154,7 +166,7 @@ export function getPendingPlacement(state) {
 }
 
 /**
- * Place the next pending piece on an empty board cell.
+ * Place the next pending piece on an empty board cell.which ever the current player is, and advance the game state to the next placement or move phase.
  *
  * @param {GameState} state Current game state.
  * @param {Position} position Empty position for the next piece.
@@ -186,7 +198,7 @@ export function placePiece(state, position) {
  * Legal destinations include the piece's current square, representing a
  * zero-step move. Other destinations must be one or two squares in a single
  * orthogonal direction without crossing walls, pieces, or board edges.
- *
+ *so in this case  . You can move which ever way you want
  * @param {GameState} state Game state to inspect.
  * @param {string} pieceId Piece to move.
  * @returns {Position[]} Reachable destinations.
@@ -225,7 +237,7 @@ export function movePiece(state, pieceId, destination) {
 }
 
 /**
- * Return true when the current player may build a wall on the selected edge.
+ * Return true when the current player may build a wall on the selected edge.And this step must be legal.
  *
  * In the original two-player rules, the wall must be beside the piece just
  * moved this turn. Walls are permanent and may only be placed on open edges
@@ -330,7 +342,7 @@ export function getUnclaimedTerritory(state) {
  *
  * The game ends when either all occupied regions are separated by player, or
  * one player leads by more points than all remaining unclaimed territory, or
- * the current player has no legal move that can be followed by a wall.
+ * the current player has no legal move that can be followed by a wall.The game will finish immediately.
  *
  * @param {GameState} state Game state to inspect.
  * @returns {boolean} Whether the game has ended.
@@ -391,7 +403,7 @@ export function getGameSummary(state) {
     winner: getWinner(state)
   };
 }
-
+// to decide where the walls can put on and where can not.
 function createEmptyWalls(size) {
   return Array.from({ length: size }, () =>
     Array.from({ length: size }, () => ({ top: false, right: false, bottom: false, left: false }))
@@ -403,7 +415,7 @@ function createEmptyWallOwners(size) {
 }
 
 function getMovesInDirection(state, start, direction, remainingSteps) {
-  // Walk one square at a time so a two-step move cannot jump through walls or pieces.
+  // Walk one square at a time so a two-step move cannot jump through walls or pieces. Make each step become the legal step and which fully meets the requirements of the game. The remainingSteps is used to limit the number of steps in a single direction.
   if (remainingSteps === 0 || state.walls[start.row][start.col][direction.name]) return [];
 
   const next = { row: start.row + direction.dr, col: start.col + direction.dc };
@@ -466,11 +478,11 @@ function exploreRegion(state, start, visited) {
 function isInside(state, position) {
   return position.row >= 0 && position.row < state.size && position.col >= 0 && position.col < state.size;
 }
-
+// to get the direction of the wall
 function getDirection(side) {
   return DIRECTIONS.find((direction) => direction.name === side);
 }
-
+//each player will switch turns during the game.
 function nextPlayer(player) {
   return player === "Red" ? "Blue" : "Red";
 }
